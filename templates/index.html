@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ЛМ-ПИОТ Мониторинг</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 ЛМ-ПИОТ Мониторинг</h1>
+            <p>ЛМЧЗ (порт 5995) | Контроллер ЛМ (порт 5063) | ПИОТ (порт 51077)</p>
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-group">
+                <h4>📊 Общая статистика</h4>
+                <div class="stat-items">
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalCount">0</div>
+                        <div class="stat-label">всего серверов</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-group">
+                <h4>🟢 ЛМЧЗ</h4>
+                <div class="stat-items">
+                    <div class="stat-item ready">
+                        <div class="stat-number" id="lmhzReady">0</div>
+                        <div class="stat-label">✅ ready</div>
+                    </div>
+                    <div class="stat-item error">
+                        <div class="stat-number" id="lmhzError">0</div>
+                        <div class="stat-label">❌ ошибка</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-group">
+                <h4>🔵 Контроллер ЛМ</h4>
+                <div class="stat-items">
+                    <div class="stat-item ready">
+                        <div class="stat-number" id="lmReady">0</div>
+                        <div class="stat-label">✅ ready</div>
+                    </div>
+                    <div class="stat-item error">
+                        <div class="stat-number" id="lmError">0</div>
+                        <div class="stat-label">❌ ошибка</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-group">
+                <h4>🟣 ПИОТ</h4>
+                <div class="stat-items">
+                    <div class="stat-item ready">
+                        <div class="stat-number" id="piotReady">0</div>
+                        <div class="stat-label">✅ ready</div>
+                    </div>
+                    <div class="stat-item error">
+                        <div class="stat-number" id="piotError">0</div>
+                        <div class="stat-label">❌ ошибка</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="refreshAllBtn">🔄 Обновить все</button>
+            <button id="addServerBtn" class="btn-success">➕ Добавить сервер</button>
+            <button id="importJsonBtn" class="btn-secondary">📁 Импорт из JSON</button>
+            <button id="exportCsvBtn" class="btn-secondary">📊 Экспорт CSV</button>
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск по названию или IP...">
+            <span id="lastUpdateInfo" class="text-muted"></span>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="serversTable">
+                <thead>
+                    <tr>
+                        <th data-sort="id" style="width: 50px; cursor: pointer;">ID <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="name" style="min-width: 150px; cursor: pointer;">📛 Название <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="lmhz" style="min-width: 120px; cursor: pointer;">🌐 IP ЛМЧЗ <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="piot" style="min-width: 120px; cursor: pointer;">🟣 IP ПИОТ <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="lmhz_status" style="min-width: 140px; cursor: pointer;">🟢 ЛМЧЗ <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="lm_status" style="min-width: 140px; cursor: pointer;">🔵 ЛМ <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="piot_status" style="min-width: 160px; cursor: pointer;">🟣 ПИОТ <span class="sort-indicator">↕️</span></th>
+                        <th data-sort="license" style="min-width: 130px; cursor: pointer;">📜 Лицензия <span class="sort-indicator">↕️</span></th>
+                        <th style="width: 80px;">⚡ Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="9" style="text-align: center; padding: 40px;">
+                        <div class="loading-spinner" style="width: 20px; height: 20px;"></div>
+                        <div style="margin-top: 10px;">Загрузка...</div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            💡 Автообновление каждые 30 секунд | Кликните на заголовок для сортировки
+        </div>
+    </div>
+
+    <!-- Modal для добавления/редактирования -->
+    <div id="serverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">➕ Добавить сервер</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="serverForm">
+                <input type="hidden" id="serverId" value="">
+                <div class="form-group">
+                    <label>Название магазина/сервера</label>
+                    <input type="text" id="serverName" placeholder="например: Магазин №5" required>
+                </div>
+                <div class="form-group">
+                    <label>🌐 IP адрес ЛМЧЗ + ЛМ контроллер</label>
+                    <input type="text" id="serverIpLmhz" placeholder="10.0.241.25" required>
+                    <small style="color: #64748b; display: block; margin-top: 4px;">
+                        Один IP для ЛМЧЗ и ЛМ контроллера (на одном устройстве)
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>🟣 IP адрес ПИОТ</label>
+                    <input type="text" id="serverIpPiot" placeholder="10.0.241.15">
+                    <small style="color: #64748b; display: block; margin-top: 4px;">
+                        Если ПИОТ на том же устройстве - оставьте пустым
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Порты (можно оставить по умолчанию)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="serverPortLmhz" value="5995" placeholder="5995" style="flex:1;">
+                        <input type="number" id="serverPortLm" value="5063" placeholder="5063" style="flex:1;">
+                        <input type="number" id="serverPortPiot" value="51077" placeholder="51077" style="flex:1;">
+                    </div>
+                    <small style="color: #64748b; display: block; margin-top: 4px;">
+                        ЛМЧЗ | ЛМ контроллер | ПИОТ
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="serverEnabled" checked> Включен
+                    </label>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn-secondary" id="cancelModalBtn">Отмена</button>
+                    <button type="submit" class="btn-success">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
